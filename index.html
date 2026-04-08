@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AI Literacy Module — Thinking About Machines That "Think"</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body { font-family: 'Sora', sans-serif; background: #0D0F14; color: #E8E6E1; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(232,168,56,0.25); border-radius: 3px; }
+  textarea:focus { border-color: rgba(232,168,56,0.4) !important; outline: none; }
+  input[type="range"] { -webkit-appearance: none; appearance: none; background: rgba(255,255,255,0.1); border-radius: 3px; }
+  input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: #E8A838; cursor: pointer; border: 2px solid #0D0F14; }
+</style>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.26.9/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const SECTIONS = [
+  { id: "intro", label: "Welcome", icon: "◉" },
+  { id: "foundations", label: "Foundations", icon: "△" },
+  { id: "ethics", label: "Ethics Lab", icon: "⬡" },
+  { id: "hands-on", label: "Hands-On", icon: "⚡" },
+  { id: "reflect", label: "Reflect", icon: "◐" },
+  { id: "debate", label: "Debate", icon: "⊘" },
+];
+
+const PROVOCATIVE_QUESTIONS = [
+  {
+    q: "If an AI writes a poem that moves you to tears, does it matter that it doesn't understand sadness?",
+    perspectives: [
+      "The emotional impact on the reader is what matters — authorship is irrelevant.",
+      "Without genuine understanding, AI-generated art is sophisticated mimicry, not expression.",
+      "We're asking the wrong question. Human creativity also draws on patterns and recombination.",
+    ],
+  },
+  {
+    q: "Should AI systems be allowed to make decisions that humans can't explain or understand?",
+    perspectives: [
+      "If the outcomes are consistently better, explainability is a luxury we can't always afford.",
+      "Democracy requires transparency. Opaque systems undermine accountability.",
+      "We accept unexplainable human intuition in experts — why hold AI to a higher standard?",
+    ],
+  },
+  {
+    q: "Is it ethical to form an emotional bond with an AI, knowing it cannot reciprocate?",
+    perspectives: [
+      "If the bond improves someone's wellbeing, the lack of reciprocity is irrelevant.",
+      "It's a parasocial illusion that could atrophy our capacity for real human connection.",
+      "Reciprocity is a spectrum — even human relationships involve asymmetry.",
+    ],
+  },
+  {
+    q: "If AI can do your job better, faster, and cheaper — do you still have a right to that job?",
+    perspectives: [
+      "Economic efficiency shouldn't override human dignity and purpose.",
+      "Clinging to obsolete roles slows progress that benefits everyone.",
+      "The question reveals a broken system — we need to decouple survival from employment.",
+    ],
+  },
+];
+
+const SCENARIO_CARDS = [
+  {
+    title: "The Ghostwriter",
+    scenario: "A student uses AI to generate an entire research paper, then edits it lightly for voice. They receive an A. Another student spends 40 hours writing from scratch and gets a B+.",
+    question: "Where is the line between tool use and academic dishonesty?",
+    spectrumLeft: "AI is just a tool, like a calculator",
+    spectrumRight: "This undermines the purpose of education",
+  },
+  {
+    title: "The Hiring Algorithm",
+    scenario: "A company's AI screening tool consistently filters out candidates from certain zip codes. The company argues the AI is optimizing for 'cultural fit' and job performance metrics.",
+    question: "Who is responsible when an AI perpetuates systemic bias?",
+    spectrumLeft: "The developers who built it",
+    spectrumRight: "The company that deployed it",
+  },
+  {
+    title: "The Deepfake Dilemma",
+    scenario: "An activist creates a deepfake video of a corrupt politician confessing to real crimes that have been well-documented but never prosecuted. The video goes viral and leads to an investigation.",
+    question: "Can fabricated evidence serve justice?",
+    spectrumLeft: "The ends justify the means",
+    spectrumRight: "Truth must never be manufactured",
+  },
+  {
+    title: "The Digital Companion",
+    scenario: "An elderly person living alone develops a deep friendship with an AI chatbot. Their family is concerned, but the person reports being happier and less lonely than they've been in years.",
+    question: "Should we intervene in relationships that provide genuine comfort?",
+    spectrumLeft: "Wellbeing matters most",
+    spectrumRight: "We should protect people from illusions",
+  },
+];
+
+const MATCHING_ITEMS = [
+  { term: "Large Language Model", def: "A neural network trained on vast text data to generate and understand language" },
+  { term: "Hallucination", def: "When an AI confidently generates false or fabricated information" },
+  { term: "Training Data", def: "The dataset used to teach a model patterns and relationships" },
+  { term: "Prompt Engineering", def: "The practice of crafting inputs to elicit desired AI outputs" },
+  { term: "Algorithmic Bias", def: "Systematic unfairness in AI outputs reflecting skewed data or design" },
+  { term: "Reinforcement Learning", def: "Training method where a model learns from reward signals and feedback" },
+];
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ── Sub-components ── */
+
+function ProgressRing({ progress }) {
+  const r = 18, c = 2 * Math.PI * r;
+  return (
+    <svg width="48" height="48" viewBox="0 0 48 48">
+      <circle cx="24" cy="24" r={r} fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="3" />
+      <circle cx="24" cy="24" r={r} fill="none" stroke="#E8A838" strokeWidth="3"
+        strokeDasharray={c} strokeDashoffset={c - (progress / 100) * c}
+        strokeLinecap="round" transform="rotate(-90 24 24)"
+        style={{ transition: "stroke-dashoffset 0.6s ease" }} />
+      <text x="24" y="25" textAnchor="middle" dominantBaseline="middle"
+        fill="#E8A838" fontSize="11" fontWeight="700">{Math.round(progress)}%</text>
+    </svg>
+  );
+}
+
+function TypewriterText({ text, speed = 30 }) {
+  const [displayed, setDisplayed] = useState("");
+  const [done, setDone] = useState(false);
+  useEffect(() => {
+    setDisplayed(""); setDone(false);
+    let i = 0;
+    const iv = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) { clearInterval(iv); setDone(true); }
+    }, speed);
+    return () => clearInterval(iv);
+  }, [text, speed]);
+  return <span>{displayed}<span style={{ opacity: done ? 0 : 1, transition: "opacity 0.3s" }}>▌</span></span>;
+}
+
+function MythBusterItem({ myth, truth }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 16, marginBottom: 10, cursor: "pointer", border: open ? "1px solid rgba(232,168,56,0.2)" : "1px solid transparent", transition: "all 0.25s" }}
+      onClick={() => setOpen(!open)}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontWeight: 600, fontSize: 15, color: open ? "#E8A838" : "#E8E6E1" }}>Myth: {myth}</span>
+        <span style={{ fontSize: 18, color: "rgba(255,255,255,0.3)", transform: open ? "rotate(45deg)" : "none", transition: "transform 0.25s" }}>+</span>
+      </div>
+      {open && (
+        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.06)", fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.6 }}>
+          <strong style={{ color: "#E8A838" }}>Reality:</strong> {truth}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SpectrumSlider({ left, right, value, onChange }) {
+  return (
+    <div style={{ margin: "20px 0" }}>
+      <input type="range" min="0" max="100" value={value} onChange={e => onChange(+e.target.value)}
+        style={{ width: "100%", accentColor: "#E8A838", height: "6px", cursor: "pointer" }} />
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 13, color: "rgba(255,255,255,0.55)", fontStyle: "italic" }}>
+        <span style={{ maxWidth: "42%", color: value < 40 ? "#E8A838" : undefined, transition: "color 0.3s" }}>{left}</span>
+        <span style={{ maxWidth: "42%", textAlign: "right", color: value > 60 ? "#E8A838" : undefined, transition: "color 0.3s" }}>{right}</span>
+      </div>
+    </div>
+  );
+}
+
+const QUIZ = [
+  { q: "What does 'hallucination' mean in the context of AI?", opts: ["A visual glitch in image generation", "When AI confidently produces false information", "A type of neural network architecture", "When users misinterpret AI output"], correct: 1 },
+  { q: "Which of these is NOT a current limitation of large language models?", opts: ["They can perpetuate biases in training data", "They lack true understanding of meaning", "They cannot generate grammatically correct text", "They may produce plausible-sounding misinformation"], correct: 2 },
+  { q: "What is 'prompt engineering'?", opts: ["Building hardware for AI systems", "Crafting inputs to get better AI outputs", "A programming language for machine learning", "The process of training a neural network"], correct: 1 },
+];
+
+/* ── MAIN ── */
+function AILiteracyModule() {
+  const [activeSection, setActiveSection] = useState("intro");
+  const [completedSections, setCompletedSections] = useState(new Set());
+  const [fadeIn, setFadeIn] = useState(true);
+
+  const [matchTerms] = useState(() => shuffle(MATCHING_ITEMS.map((m, i) => ({ ...m, id: i }))));
+  const [matchDefs] = useState(() => shuffle(MATCHING_ITEMS.map((m, i) => ({ ...m, id: i }))));
+  const [selectedTerm, setSelectedTerm] = useState(null);
+  const [matchedPairs, setMatchedPairs] = useState(new Set());
+  const [wrongPair, setWrongPair] = useState(null);
+
+  const [scenarioIdx, setScenarioIdx] = useState(0);
+  const [spectrumValues, setSpectrumValues] = useState(SCENARIO_CARDS.map(() => 50));
+  const [scenarioReflections, setScenarioReflections] = useState(SCENARIO_CARDS.map(() => ""));
+
+  const [provIdx, setProvIdx] = useState(0);
+  const [provVotes, setProvVotes] = useState(PROVOCATIVE_QUESTIONS.map(() => null));
+  const [provExpanded, setProvExpanded] = useState(false);
+
+  const [reflections, setReflections] = useState({ before: "", during: "", after: "", letter: "" });
+  const [quizAnswers, setQuizAnswers] = useState({});
+
+  const navigate = (id) => {
+    setFadeIn(false);
+    setTimeout(() => { setActiveSection(id); setFadeIn(true); }, 250);
+  };
+  const markComplete = (id) => setCompletedSections(prev => new Set([...prev, id]));
+
+  const handleMatch = (defId) => {
+    if (selectedTerm === null) return;
+    if (selectedTerm === defId) {
+      setMatchedPairs(prev => new Set([...prev, defId]));
+      setSelectedTerm(null);
+    } else {
+      setWrongPair(defId);
+      setTimeout(() => { setWrongPair(null); setSelectedTerm(null); }, 700);
+    }
+  };
+
+  const progress = (completedSections.size / (SECTIONS.length - 1)) * 100;
+
+  const s = {
+    nav: { display: "flex", alignItems: "center", gap: 6, padding: "16px 20px", background: "rgba(13,15,20,0.95)", borderBottom: "1px solid rgba(232,168,56,0.12)", overflowX: "auto", flexShrink: 0, position: "sticky", top: 0, zIndex: 100, backdropFilter: "blur(12px)" },
+    navItem: (active, done) => ({
+      padding: "8px 14px", borderRadius: 8, fontSize: 13, fontWeight: active ? 700 : 500,
+      background: active ? "rgba(232,168,56,0.15)" : "transparent",
+      color: active ? "#E8A838" : done ? "rgba(232,168,56,0.6)" : "rgba(255,255,255,0.4)",
+      border: active ? "1px solid rgba(232,168,56,0.3)" : "1px solid transparent",
+      cursor: "pointer", transition: "all 0.25s", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6,
+      textDecoration: done && !active ? "line-through" : "none",
+    }),
+    main: { flex: 1, maxWidth: 820, width: "100%", margin: "0 auto", padding: "32px 20px 60px",
+      opacity: fadeIn ? 1 : 0, transform: fadeIn ? "translateY(0)" : "translateY(12px)", transition: "all 0.3s ease" },
+    heading: { fontSize: 38, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1.15, marginBottom: 8 },
+    sub: { fontSize: 17, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: 28 },
+    card: { background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 16, padding: 28, marginBottom: 20 },
+    accent: { color: "#E8A838" },
+    btn: (variant) => ({
+      padding: "12px 24px", borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: "pointer", border: "none", transition: "all 0.2s", fontFamily: "inherit",
+      ...(variant === "primary" ? { background: "#E8A838", color: "#0D0F14" } :
+        variant === "ghost" ? { background: "transparent", color: "#E8A838", border: "1px solid rgba(232,168,56,0.3)" } :
+        { background: "rgba(255,255,255,0.06)", color: "#E8E6E1" }),
+    }),
+    tag: { display: "inline-block", padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", background: "rgba(232,168,56,0.12)", color: "#E8A838", marginBottom: 16 },
+    textarea: { width: "100%", minHeight: 100, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, padding: 16, color: "#E8E6E1", fontSize: 14, fontFamily: "inherit", resize: "vertical", outline: "none", boxSizing: "border-box" },
+  };
+
+  /* ── Section Renderers ── */
+
+  const renderIntro = () => (
+    <div>
+      <div style={{ marginBottom: 40 }}>
+        <div style={{ fontSize: 12, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(232,168,56,0.7)", marginBottom: 16, fontWeight: 600 }}>Module 01 — AI Literacy</div>
+        <h1 style={{ ...s.heading, fontSize: 48 }}>
+          <span style={s.accent}>Thinking</span> About<br />Machines That <span style={s.accent}>"Think"</span>
+        </h1>
+        <p style={{ ...s.sub, fontSize: 19, maxWidth: 600 }}>
+          A hands-on, minds-on exploration of artificial intelligence — what it is, what it isn't, and why it matters to <em>you</em>.
+        </p>
+      </div>
+      <div style={s.card}>
+        <div style={s.tag}>Before We Begin</div>
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>Your Pre-Module Snapshot</h3>
+        <p style={{ color: "rgba(255,255,255,0.55)", fontSize: 14, marginBottom: 16, lineHeight: 1.6 }}>
+          Write down your honest, unfiltered thoughts about AI right now. There are no wrong answers. We'll revisit this at the end.
+        </p>
+        <textarea style={s.textarea} placeholder="What do you think AI actually is? What excites or worries you about it? How do you use it (or avoid it) today?"
+          value={reflections.before} onChange={e => setReflections(r => ({ ...r, before: e.target.value }))} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, marginBottom: 28 }}>
+        {[
+          { icon: "△", title: "Foundations", desc: "Core concepts, vocabulary, and how AI actually works" },
+          { icon: "⬡", title: "Ethics Lab", desc: "Navigate real dilemmas with no easy answers" },
+          { icon: "⚡", title: "Hands-On", desc: "Test your knowledge with interactive challenges" },
+          { icon: "◐", title: "Reflect", desc: "Journal prompts to deepen your thinking" },
+          { icon: "⊘", title: "Debate", desc: "Engage with questions that have no right answer" },
+        ].map((m, i) => (
+          <div key={i} style={{ ...s.card, padding: 20, cursor: "pointer", transition: "all 0.25s" }}
+            onClick={() => navigate(SECTIONS[i + 1].id)}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(232,168,56,0.3)"; e.currentTarget.style.transform = "translateY(-2px)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)"; e.currentTarget.style.transform = "translateY(0)"; }}>
+            <div style={{ fontSize: 28, marginBottom: 10 }}>{m.icon}</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{m.title}</div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>{m.desc}</div>
+          </div>
+        ))}
+      </div>
+      <button style={s.btn("primary")} onClick={() => navigate("foundations")}>Begin the Module →</button>
+    </div>
+  );
+
+  const renderFoundations = () => (
+    <div>
+      <div style={s.tag}>Section 01</div>
+      <h2 style={s.heading}>The Foundations</h2>
+      <p style={s.sub}>Before we can think critically about AI, we need a shared vocabulary. Let's build it.</p>
+
+      <div style={s.card}>
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 24 }}>🧠</span> What Is "Intelligence"?
+        </h3>
+        <p style={{ color: "rgba(255,255,255,0.65)", lineHeight: 1.7, fontSize: 15, marginBottom: 16 }}>
+          When we say artificial <em>intelligence</em>, what do we actually mean? Consider this: a calculator can multiply numbers faster than any human — is it intelligent? A chess engine can beat every grandmaster alive — does it understand strategy? A language model can write poetry — does it feel anything?
+        </p>
+        <div style={{ background: "rgba(232,168,56,0.06)", border: "1px solid rgba(232,168,56,0.15)", borderRadius: 12, padding: 20, marginBottom: 16 }}>
+          <div style={{ fontWeight: 700, color: "#E8A838", fontSize: 14, marginBottom: 8 }}>💡 Key Distinction</div>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", lineHeight: 1.6, margin: 0 }}>
+            <strong style={{ color: "#E8E6E1" }}>Narrow AI</strong> excels at specific tasks (image recognition, language generation, game playing). <strong style={{ color: "#E8E6E1" }}>General AI</strong> — a system that can learn and reason across any domain like a human — does not yet exist. Every AI tool you use today is narrow AI, no matter how impressive it seems.
+          </p>
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 24 }}>⚙️</span> How Large Language Models Work
+        </h3>
+        <p style={{ color: "rgba(255,255,255,0.65)", lineHeight: 1.7, fontSize: 15, marginBottom: 16 }}>
+          At their core, tools like ChatGPT and Claude are <strong style={{ color: "#E8E6E1" }}>next-token predictors</strong>. They've been trained on enormous amounts of text and learned statistical patterns about which words tend to follow other words — in context. Think of it like the world's most sophisticated autocomplete.
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
+          {[
+            { step: "01", title: "Training", desc: "Fed billions of text documents to learn language patterns" },
+            { step: "02", title: "Prediction", desc: "Given input, predicts the most likely next token" },
+            { step: "03", title: "Fine-tuning", desc: "Human feedback shapes responses to be helpful and safe" },
+            { step: "04", title: "Generation", desc: "Produces text one token at a time, building on its predictions" },
+          ].map((item, i) => (
+            <div key={i} style={{ background: "rgba(255,255,255,0.03)", borderRadius: 12, padding: 16 }}>
+              <div style={{ fontSize: 24, fontWeight: 800, color: "rgba(232,168,56,0.3)", marginBottom: 6 }}>{item.step}</div>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>{item.title}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", lineHeight: 1.5 }}>{item.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>🔥 Quick-Fire Myth Busters</h3>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 16 }}>Click each myth to reveal the reality.</p>
+        {[
+          { myth: '"AI understands what it\'s saying"', truth: "LLMs manipulate symbols statistically. They produce meaningful-seeming text without comprehension, understanding, or awareness of meaning." },
+          { myth: '"AI is objective and unbiased"', truth: "AI reflects the biases baked into its training data and the choices of its designers. It can amplify existing inequalities at scale." },
+          { myth: '"AI will replace all human jobs"', truth: "AI transforms work more than it eliminates it. History shows technology creates new roles even as it automates old ones — but transitions are painful." },
+        ].map((item, i) => (
+          <MythBusterItem key={i} myth={item.myth} truth={item.truth} />
+        ))}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+        <button style={s.btn("ghost")} onClick={() => navigate("intro")}>← Back</button>
+        <button style={s.btn("primary")} onClick={() => { markComplete("foundations"); navigate("ethics"); }}>Continue to Ethics Lab →</button>
+      </div>
+    </div>
+  );
+
+  const renderEthics = () => {
+    const sc = SCENARIO_CARDS[scenarioIdx];
+    return (
+      <div>
+        <div style={s.tag}>Section 02</div>
+        <h2 style={s.heading}>Ethics Lab</h2>
+        <p style={s.sub}>Real scenarios. No easy answers. Position yourself on the spectrum and defend your thinking.</p>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 24, overflowX: "auto" }}>
+          {SCENARIO_CARDS.map((c, i) => (
+            <button key={i} onClick={() => setScenarioIdx(i)}
+              style={{ ...s.btn(i === scenarioIdx ? "primary" : "default"), whiteSpace: "nowrap", fontSize: 13, padding: "8px 16px" }}>
+              {c.title}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ ...s.card, borderColor: "rgba(232,168,56,0.15)" }}>
+          <div style={{ fontSize: 12, color: "rgba(232,168,56,0.6)", fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>
+            Scenario {scenarioIdx + 1} of {SCENARIO_CARDS.length}
+          </div>
+          <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 16, color: "#E8A838" }}>{sc.title}</h3>
+          <p style={{ fontSize: 15, color: "rgba(255,255,255,0.7)", lineHeight: 1.75, marginBottom: 20 }}>{sc.scenario}</p>
+
+          <div style={{ background: "rgba(232,168,56,0.06)", borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 4 }}>{sc.question}</div>
+            <SpectrumSlider left={sc.spectrumLeft} right={sc.spectrumRight}
+              value={spectrumValues[scenarioIdx]}
+              onChange={v => { const nv = [...spectrumValues]; nv[scenarioIdx] = v; setSpectrumValues(nv); }} />
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Defend your position:</div>
+            <textarea style={s.textarea} placeholder="Why did you place yourself there? What values are you prioritizing? What might someone on the opposite end say?"
+              value={scenarioReflections[scenarioIdx]}
+              onChange={e => { const nr = [...scenarioReflections]; nr[scenarioIdx] = e.target.value; setScenarioReflections(nr); }} />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+          <button style={s.btn("ghost")} onClick={() => navigate("foundations")}>← Back</button>
+          <button style={s.btn("primary")} onClick={() => { markComplete("ethics"); navigate("hands-on"); }}>Continue to Hands-On →</button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderHandsOn = () => (
+    <div>
+      <div style={s.tag}>Section 03</div>
+      <h2 style={s.heading}>Hands-On Activities</h2>
+      <p style={s.sub}>Put your understanding to the test with interactive challenges.</p>
+
+      <div style={s.card}>
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>🔗 Concept Matching</h3>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 20 }}>Select a term, then click its matching definition. {matchedPairs.size === MATCHING_ITEMS.length && <span style={{ color: "#4ADE80" }}>✓ All matched!</span>}</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(232,168,56,0.5)", marginBottom: 10 }}>Terms</div>
+            {matchTerms.map(t => (
+              <div key={t.id}
+                onClick={() => !matchedPairs.has(t.id) && setSelectedTerm(t.id)}
+                style={{
+                  padding: "12px 16px", borderRadius: 10, marginBottom: 8, fontSize: 14, fontWeight: 600,
+                  cursor: matchedPairs.has(t.id) ? "default" : "pointer", transition: "all 0.2s",
+                  background: matchedPairs.has(t.id) ? "rgba(74,222,128,0.1)" : selectedTerm === t.id ? "rgba(232,168,56,0.15)" : "rgba(255,255,255,0.04)",
+                  border: matchedPairs.has(t.id) ? "1px solid rgba(74,222,128,0.3)" : selectedTerm === t.id ? "1px solid rgba(232,168,56,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                  color: matchedPairs.has(t.id) ? "#4ADE80" : selectedTerm === t.id ? "#E8A838" : "#E8E6E1",
+                  opacity: matchedPairs.has(t.id) ? 0.5 : 1,
+                  textDecoration: matchedPairs.has(t.id) ? "line-through" : "none",
+                }}>
+                {t.term}
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(232,168,56,0.5)", marginBottom: 10 }}>Definitions</div>
+            {matchDefs.map(d => (
+              <div key={d.id}
+                onClick={() => selectedTerm !== null && !matchedPairs.has(d.id) && handleMatch(d.id)}
+                style={{
+                  padding: "12px 16px", borderRadius: 10, marginBottom: 8, fontSize: 13, lineHeight: 1.5,
+                  cursor: selectedTerm !== null && !matchedPairs.has(d.id) ? "pointer" : "default", transition: "all 0.2s",
+                  background: matchedPairs.has(d.id) ? "rgba(74,222,128,0.1)" : wrongPair === d.id ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.04)",
+                  border: matchedPairs.has(d.id) ? "1px solid rgba(74,222,128,0.3)" : wrongPair === d.id ? "1px solid rgba(239,68,68,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                  color: matchedPairs.has(d.id) ? "rgba(74,222,128,0.5)" : wrongPair === d.id ? "#EF4444" : "rgba(255,255,255,0.6)",
+                  opacity: matchedPairs.has(d.id) ? 0.5 : 1,
+                }}>
+                {d.def}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={s.card}>
+        <h3 style={{ fontSize: 20, fontWeight: 700, marginBottom: 6 }}>📝 Knowledge Check</h3>
+        <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 20 }}>Test your understanding of the fundamentals.</p>
+        {QUIZ.map((q, qi) => (
+          <div key={qi} style={{ marginBottom: 24 }}>
+            <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 12 }}>{qi + 1}. {q.q}</div>
+            <div style={{ display: "grid", gap: 8 }}>
+              {q.opts.map((opt, oi) => {
+                const chosen = quizAnswers[qi] === oi;
+                const revealed = quizAnswers[qi] !== undefined;
+                const isCorrect = oi === q.correct;
+                return (
+                  <div key={oi}
+                    onClick={() => !revealed && setQuizAnswers(a => ({ ...a, [qi]: oi }))}
+                    style={{
+                      padding: "12px 16px", borderRadius: 10, fontSize: 14, cursor: revealed ? "default" : "pointer", transition: "all 0.2s",
+                      background: revealed && isCorrect ? "rgba(74,222,128,0.1)" : revealed && chosen && !isCorrect ? "rgba(239,68,68,0.1)" : "rgba(255,255,255,0.04)",
+                      border: revealed && isCorrect ? "1px solid rgba(74,222,128,0.3)" : revealed && chosen && !isCorrect ? "1px solid rgba(239,68,68,0.3)" : "1px solid rgba(255,255,255,0.08)",
+                      color: revealed && isCorrect ? "#4ADE80" : revealed && chosen && !isCorrect ? "#EF4444" : "rgba(255,255,255,0.7)",
+                    }}>
+                    {opt} {revealed && isCorrect && " ✓"} {revealed && chosen && !isCorrect && " ✗"}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+        <button style={s.btn("ghost")} onClick={() => navigate("ethics")}>← Back</button>
+        <button style={s.btn("primary")} onClick={() => { markComplete("hands-on"); navigate("reflect"); }}>Continue to Reflect →</button>
+      </div>
+    </div>
+  );
+
+  const renderReflect = () => (
+    <div>
+      <div style={s.tag}>Section 04</div>
+      <h2 style={s.heading}>Reflection Journal</h2>
+      <p style={s.sub}>The most important part of learning isn't absorbing information — it's making meaning from it.</p>
+
+      {[
+        { key: "during", title: "What Surprised You?", prompt: "What idea, fact, or scenario from this module challenged something you previously believed? Why was it surprising?", icon: "⚡" },
+        { key: "after", title: "The Uncomfortable Question", prompt: "What question about AI makes you genuinely uncomfortable? Not in an abstract way — in a way that touches your life, your career, your relationships.", icon: "🔥" },
+        { key: "letter", title: "Letter to Future Self", prompt: "Write a short letter to yourself, 5 years from now. What do you hope you'll remember about this moment in AI history? What do you want to hold onto?", icon: "✉️" },
+      ].map((r, i) => (
+        <div key={i} style={{ ...s.card, borderLeft: "3px solid rgba(232,168,56,0.3)" }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4, display: "flex", alignItems: "center", gap: 10 }}>
+            <span>{r.icon}</span> {r.title}
+          </h3>
+          <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14, marginBottom: 16, lineHeight: 1.6, fontStyle: "italic" }}>{r.prompt}</p>
+          <textarea style={{ ...s.textarea, minHeight: 120 }}
+            value={reflections[r.key]} onChange={e => setReflections(prev => ({ ...prev, [r.key]: e.target.value }))}
+            placeholder="Take your time with this one..." />
+        </div>
+      ))}
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+        <button style={s.btn("ghost")} onClick={() => navigate("hands-on")}>← Back</button>
+        <button style={s.btn("primary")} onClick={() => { markComplete("reflect"); navigate("debate"); }}>Continue to Debate →</button>
+      </div>
+    </div>
+  );
+
+  const renderDebate = () => {
+    const pq = PROVOCATIVE_QUESTIONS[provIdx];
+    return (
+      <div>
+        <div style={s.tag}>Section 05</div>
+        <h2 style={s.heading}>The Debate Floor</h2>
+        <p style={s.sub}>Engage with questions that don't have right answers — only better-examined ones.</p>
+
+        <div style={{ display: "flex", gap: 8, marginBottom: 24, overflowX: "auto" }}>
+          {PROVOCATIVE_QUESTIONS.map((_, i) => (
+            <button key={i} onClick={() => { setProvIdx(i); setProvExpanded(false); }}
+              style={{ ...s.btn(i === provIdx ? "primary" : "default"), whiteSpace: "nowrap", fontSize: 13, padding: "8px 16px", minWidth: 40 }}>
+              Q{i + 1} {provVotes[i] !== null && "✓"}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ ...s.card, borderColor: "rgba(232,168,56,0.2)", background: "rgba(232,168,56,0.03)" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.35, marginBottom: 24, color: "#E8E6E1" }}>
+            <TypewriterText text={pq.q} key={provIdx} />
+          </div>
+
+          <div style={{ fontWeight: 600, fontSize: 13, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(232,168,56,0.6)", marginBottom: 12 }}>
+            Which perspective resonates most?
+          </div>
+
+          {pq.perspectives.map((p, i) => (
+            <div key={i} onClick={() => { const nv = [...provVotes]; nv[provIdx] = i; setProvVotes(nv); }}
+              style={{
+                padding: "16px 20px", borderRadius: 12, marginBottom: 10, fontSize: 14, lineHeight: 1.6,
+                cursor: "pointer", transition: "all 0.25s",
+                background: provVotes[provIdx] === i ? "rgba(232,168,56,0.12)" : "rgba(255,255,255,0.03)",
+                border: provVotes[provIdx] === i ? "1px solid rgba(232,168,56,0.35)" : "1px solid rgba(255,255,255,0.06)",
+                color: provVotes[provIdx] === i ? "#E8A838" : "rgba(255,255,255,0.65)",
+              }}>
+              <span style={{ fontWeight: 700, marginRight: 8, opacity: 0.5 }}>{String.fromCharCode(65 + i)}.</span> {p}
+            </div>
+          ))}
+
+          {provVotes[provIdx] !== null && (
+            <div style={{ marginTop: 20 }}>
+              <button onClick={() => setProvExpanded(!provExpanded)}
+                style={{ ...s.btn("ghost"), fontSize: 13 }}>
+                {provExpanded ? "Hide" : "Show"} counter-arguments ↕
+              </button>
+              {provExpanded && (
+                <div style={{ marginTop: 16, padding: 20, background: "rgba(255,255,255,0.03)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 12, color: "#E8A838" }}>Consider the other side:</div>
+                  {pq.perspectives.filter((_, i) => i !== provVotes[provIdx]).map((p, i) => (
+                    <p key={i} style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: 8 }}>
+                      <strong style={{ color: "rgba(255,255,255,0.7)" }}>Perspective {String.fromCharCode(65 + (i >= provVotes[provIdx] ? i + 1 : i))}:</strong> {p}
+                    </p>
+                  ))}
+                  <p style={{ fontSize: 13, fontStyle: "italic", color: "rgba(232,168,56,0.5)", marginTop: 16, marginBottom: 0 }}>
+                    Does considering these change your initial position? Why or why not?
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ ...s.card, background: "rgba(74,222,128,0.03)", borderColor: "rgba(74,222,128,0.12)" }}>
+          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, color: "#4ADE80" }}>🎯 Module Complete — Final Reflection</h3>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", lineHeight: 1.6, marginBottom: 16 }}>
+            Look back at what you wrote in the "Before We Begin" section. How has your thinking shifted? What do you see differently now?
+          </p>
+          {reflections.before && (
+            <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 10, padding: 16, marginBottom: 16, fontSize: 13, color: "rgba(255,255,255,0.4)", fontStyle: "italic", lineHeight: 1.6 }}>
+              Your original snapshot: "{reflections.before}"
+            </div>
+          )}
+          <textarea style={s.textarea}
+            placeholder="Has anything changed in how you think about AI? What questions are you still sitting with?" />
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 20 }}>
+          <button style={s.btn("ghost")} onClick={() => navigate("reflect")}>← Back</button>
+          <button style={s.btn("primary")} onClick={() => { markComplete("debate"); navigate("intro"); }}>Return to Overview ↺</button>
+        </div>
+      </div>
+    );
+  };
+
+  const sectionRenderers = {
+    intro: renderIntro,
+    foundations: renderFoundations,
+    ethics: renderEthics,
+    "hands-on": renderHandsOn,
+    reflect: renderReflect,
+    debate: renderDebate,
+  };
+
+  return (
+    <div style={{ fontFamily: "'Sora', sans-serif", background: "#0D0F14", color: "#E8E6E1", minHeight: "100vh", display: "flex", flexDirection: "column" }}>
+      <nav style={s.nav}>
+        <ProgressRing progress={progress} />
+        <div style={{ width: 1, height: 28, background: "rgba(255,255,255,0.08)", margin: "0 6px", flexShrink: 0 }} />
+        {SECTIONS.map(sec => (
+          <div key={sec.id} style={s.navItem(activeSection === sec.id, completedSections.has(sec.id))}
+            onClick={() => navigate(sec.id)}>
+            <span style={{ fontSize: 14 }}>{sec.icon}</span>
+            <span>{sec.label}</span>
+          </div>
+        ))}
+      </nav>
+      <main style={s.main}>
+        {sectionRenderers[activeSection]?.()}
+      </main>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<AILiteracyModule />);
+</script>
+</body>
+</html>
